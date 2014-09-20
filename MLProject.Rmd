@@ -136,13 +136,26 @@ decided to use default parameters for all these models.
 ```{r cart_model}
   ptm <- proc.time()
   set.seed(1153)
+
+  # train the model
   cart_mod_fit <- train(classe ~ .,  data = train_set, method="rpart")
+  
+  #predictions on training set itself
+  cart_insample_predictions <- predict(cart_mod_fit, newdata=train_set)
+  cart_insample_accuracy <- confusionMatrix(cart_insample_predictions, train_set$classe)$overall[1]
+  cart_insample_error_rate <- sum(cart_insample_predictions != train_set$classe)/nrow(train_set)
+
+  #predictions on the cross-validation set
   cart_predictions <- predict(cart_mod_fit, newdata=crossv_set)
   cart_accuracy <- confusionMatrix(cart_predictions, crossv_set$classe)$overall[1]
   cart_error_rate <- sum(cart_predictions != crossv_set$classe)/nrow(crossv_set)
+
+  #predictions on the test set
   cart_test_pred <- predict(cart_mod_fit, newdata=test_Clean)
-  ptm <- proc.time () - ptm
+  
   print(cart_mod_fit, digits=3)
+  ptm <- proc.time () - ptm
+
 ```
 
 ***Boosting(GBM)***
@@ -150,13 +163,25 @@ decided to use default parameters for all these models.
 ```{r gbm_model}
   ptm <- proc.time()
   set.seed(1153)
+
+  #train the model
   gbm_mod_fit <- train(classe ~ .,  data = train_set, method="gbm", verbose=FALSE)
+  
+  #predictions on training set itself
+  gbm_insample_predictions <- predict(gbm_mod_fit, newdata=train_set)
+  gbm_insample_accuracy <- confusionMatrix(gbm_insample_predictions, train_set$classe)$overall[1]
+  gbm_insample_error_rate <- sum(gbm_insample_predictions != train_set$classe)/nrow(train_set)
+
+  #prediction on the cross validation set
   gbm_predictions <- predict(gbm_mod_fit, newdata=crossv_set)
   gbm_accuracy <- confusionMatrix(gbm_predictions, crossv_set$classe)$overall[1]
   gbm_error_rate <- sum(gbm_predictions != crossv_set$classe)/nrow(crossv_set)
+  
+  #predictions on the test set
   gbm_test_pred <- predict(gbm_mod_fit, newdata=test_Clean)
-  ptm <- proc.time () - ptm
+
   print(gbm_mod_fit, digits=3)
+  ptm <- proc.time () - ptm
 ```
 
 ***Random Forest(RF)***
@@ -164,32 +189,58 @@ decided to use default parameters for all these models.
 ```{r rf_model}
   ptm <- proc.time()
   set.seed(1153)
+
+  #train the model
   rf_mod_fit <- train(classe ~ .,  data = train_set, method="rf", ntree=250)
+  
+  #predictions on training set itself
+  rf_insample_predictions <- predict(rf_mod_fit, newdata=train_set)
+  rf_insample_accuracy <- confusionMatrix(rf_insample_predictions, train_set$classe)$overall[1]
+  rf_insample_error_rate <- sum(rf_insample_predictions != train_set$classe)/nrow(train_set)
+
+  #predictions on the cross validation set
   rf_predictions <- predict(rf_mod_fit, newdata=crossv_set)
   rf_accuracy <- confusionMatrix(rf_predictions, crossv_set$classe)$overall[1]
   rf_error_rate <- sum(rf_predictions != crossv_set$classe)/nrow(crossv_set)
+  
+  #predictions on the test data set
   rf_test_pred <- predict(rf_mod_fit, newdata=test_Clean)
-  ptm <- proc.time () - ptm
+  
   print(rf_mod_fit, digits=3)
+  ptm <- proc.time () - ptm
 ```
 
 ###Out of Sample Error
 
-This is the error rate reported on the cross-validation data set.
+The "In Sample" error rate is calculated on the training set itself, and the "Out of Sample"
+error rate is calculated on the cross-validation data set. There is a small difference in the
+two error rates as expected. 
 
 ```{r oos_error, echo=FALSE}
 
-    print(paste0("Classification Trees(CART): ",
+    print(paste0("Classification Trees(CART): In Sample ",
+             "Accuracy=", round(cart_insample_accuracy, digits=3), 
+             ", Error rate=", round(cart_insample_error_rate,digits=4) )) 
+
+    print(paste0("Classification Trees(CART): Out of Sample ",
              "Accuracy=", round(cart_accuracy, digits=3), 
-             ", Out of Sample error rate=", round(cart_error_rate,digits=3) )) 
+             ", Error rate=", round(cart_error_rate,digits=4) )) 
 
-    print(paste0("Boosting(GBM): ",
-             "Accuracy=", round(gbm_accuracy, digits=3), 
-             ", Out of Sample error rate=", round(gbm_error_rate,digits=3) )) 
+    print(paste0("Boosting(GBM): In Sample ",
+             "Accuracy=", round(gbm_insample_accuracy, digits=4), 
+             ", Error rate=", round(gbm_insample_error_rate,digits=4) )) 
 
-    print(paste0("Random Forest(RF): ",
-             "Accuracy=", round(rf_accuracy, digits=3), 
-             ", Out of Sample error rate=", round(rf_error_rate,digits=3) )) 
+    print(paste0("Boosting(GBM): Out of Sample ",
+             "Accuracy=", round(gbm_accuracy, digits=4), 
+             ", Error rate=", round(gbm_error_rate,digits=4) )) 
+
+    print(paste0("Random Forest(RF): In Sample ",
+             "Accuracy=", round(rf_insample_accuracy, digits=4), 
+             ", Error rate=", round(rf_insample_error_rate,digits=4) )) 
+
+    print(paste0("Random Forest(RF): Out of Sample ",
+             "Accuracy=", round(rf_accuracy, digits=4), 
+             ", Error rate=", round(rf_error_rate,digits=4) )) 
 
 ```
 
