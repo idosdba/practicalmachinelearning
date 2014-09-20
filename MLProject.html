@@ -279,13 +279,23 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 <p><strong><em>Classification Trees(CART)</em></strong></p>
 <pre class="r"><code>  ptm &lt;- proc.time()
   set.seed(1153)
+
+  # train the model
   cart_mod_fit &lt;- train(classe ~ .,  data = train_set, method=&quot;rpart&quot;)</code></pre>
 <pre><code>## Loading required package: rpart</code></pre>
-<pre class="r"><code>  cart_predictions &lt;- predict(cart_mod_fit, newdata=crossv_set)
+<pre class="r"><code>  #predictions on training set itself
+  cart_insample_predictions &lt;- predict(cart_mod_fit, newdata=train_set)
+  cart_insample_accuracy &lt;- confusionMatrix(cart_insample_predictions, train_set$classe)$overall[1]
+  cart_insample_error_rate &lt;- sum(cart_insample_predictions != train_set$classe)/nrow(train_set)
+
+  #predictions on the cross-validation set
+  cart_predictions &lt;- predict(cart_mod_fit, newdata=crossv_set)
   cart_accuracy &lt;- confusionMatrix(cart_predictions, crossv_set$classe)$overall[1]
   cart_error_rate &lt;- sum(cart_predictions != crossv_set$classe)/nrow(crossv_set)
+
+  #predictions on the test set
   cart_test_pred &lt;- predict(cart_mod_fit, newdata=test_Clean)
-  ptm &lt;- proc.time () - ptm
+  
   print(cart_mod_fit, digits=3)</code></pre>
 <pre><code>## CART 
 ## 
@@ -301,22 +311,33 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 ## Resampling results across tuning parameters:
 ## 
 ##   cp      Accuracy  Kappa   Accuracy SD  Kappa SD
-##   0.0353  0.507     0.361   0.0256       0.0361  
-##   0.0609  0.382     0.155   0.0468       0.0772  
-##   0.115   0.345     0.0946  0.0329       0.0487  
+##   0.0337  0.538     0.406   0.0323       0.048   
+##   0.0629  0.391     0.169   0.0558       0.0906  
+##   0.119   0.334     0.0778  0.0374       0.0597  
 ## 
 ## Accuracy was used to select the optimal model using  the largest value.
-## The final value used for the model was cp = 0.0353.</code></pre>
+## The final value used for the model was cp = 0.0337.</code></pre>
+<pre class="r"><code>  ptm &lt;- proc.time () - ptm</code></pre>
 <p><strong><em>Boosting(GBM)</em></strong></p>
 <pre class="r"><code>  ptm &lt;- proc.time()
   set.seed(1153)
+
+  #train the model
   gbm_mod_fit &lt;- train(classe ~ .,  data = train_set, method=&quot;gbm&quot;, verbose=FALSE)</code></pre>
 <pre><code>## Loading required package: plyr</code></pre>
-<pre class="r"><code>  gbm_predictions &lt;- predict(gbm_mod_fit, newdata=crossv_set)
+<pre class="r"><code>  #predictions on training set itself
+  gbm_insample_predictions &lt;- predict(gbm_mod_fit, newdata=train_set)
+  gbm_insample_accuracy &lt;- confusionMatrix(gbm_insample_predictions, train_set$classe)$overall[1]
+  gbm_insample_error_rate &lt;- sum(gbm_insample_predictions != train_set$classe)/nrow(train_set)
+
+  #prediction on the cross validation set
+  gbm_predictions &lt;- predict(gbm_mod_fit, newdata=crossv_set)
   gbm_accuracy &lt;- confusionMatrix(gbm_predictions, crossv_set$classe)$overall[1]
   gbm_error_rate &lt;- sum(gbm_predictions != crossv_set$classe)/nrow(crossv_set)
+  
+  #predictions on the test set
   gbm_test_pred &lt;- predict(gbm_mod_fit, newdata=test_Clean)
-  ptm &lt;- proc.time () - ptm
+
   print(gbm_mod_fit, digits=3)</code></pre>
 <pre><code>## Stochastic Gradient Boosting 
 ## 
@@ -332,29 +353,41 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 ## Resampling results across tuning parameters:
 ## 
 ##   interaction.depth  n.trees  Accuracy  Kappa  Accuracy SD  Kappa SD
-##   1                  50       0.738     0.668  0.0116       0.0147  
-##   1                  100      0.807     0.756  0.0103       0.0129  
-##   1                  150      0.84      0.797  0.01         0.0124  
-##   2                  50       0.843     0.801  0.0103       0.0128  
-##   2                  100      0.895     0.867  0.00686      0.00856 
-##   2                  150      0.917     0.896  0.00539      0.00673 
-##   3                  50       0.889     0.859  0.00861      0.0108  
-##   3                  100      0.927     0.907  0.00571      0.00715 
-##   3                  150      0.943     0.928  0.00462      0.0058  
+##   1                  50       0.746     0.678  0.0116       0.0146  
+##   1                  100      0.813     0.764  0.00967      0.0121  
+##   1                  150      0.847     0.807  0.00947      0.0119  
+##   2                  50       0.847     0.806  0.01         0.0126  
+##   2                  100      0.899     0.872  0.00924      0.0116  
+##   2                  150      0.921     0.9    0.00685      0.00861 
+##   3                  50       0.891     0.862  0.00906      0.0114  
+##   3                  100      0.929     0.91   0.00698      0.00879 
+##   3                  150      0.945     0.93   0.00558      0.00702 
 ## 
 ## Tuning parameter 'shrinkage' was held constant at a value of 0.1
 ## Accuracy was used to select the optimal model using  the largest value.
 ## The final values used for the model were n.trees = 150,
 ##  interaction.depth = 3 and shrinkage = 0.1.</code></pre>
+<pre class="r"><code>  ptm &lt;- proc.time () - ptm</code></pre>
 <p><strong><em>Random Forest(RF)</em></strong></p>
 <pre class="r"><code>  ptm &lt;- proc.time()
   set.seed(1153)
+
+  #train the model
   rf_mod_fit &lt;- train(classe ~ .,  data = train_set, method=&quot;rf&quot;, ntree=250)
+  
+  #predictions on training set itself
+  rf_insample_predictions &lt;- predict(rf_mod_fit, newdata=train_set)
+  rf_insample_accuracy &lt;- confusionMatrix(rf_insample_predictions, train_set$classe)$overall[1]
+  rf_insample_error_rate &lt;- sum(rf_insample_predictions != train_set$classe)/nrow(train_set)
+
+  #predictions on the cross validation set
   rf_predictions &lt;- predict(rf_mod_fit, newdata=crossv_set)
   rf_accuracy &lt;- confusionMatrix(rf_predictions, crossv_set$classe)$overall[1]
   rf_error_rate &lt;- sum(rf_predictions != crossv_set$classe)/nrow(crossv_set)
+  
+  #predictions on the test data set
   rf_test_pred &lt;- predict(rf_mod_fit, newdata=test_Clean)
-  ptm &lt;- proc.time () - ptm
+  
   print(rf_mod_fit, digits=3)</code></pre>
 <pre><code>## Random Forest 
 ## 
@@ -370,31 +403,35 @@ if (window.hljs && document.readyState && document.readyState === "complete") {
 ## Resampling results across tuning parameters:
 ## 
 ##   mtry  Accuracy  Kappa  Accuracy SD  Kappa SD
-##   2     0.968     0.959  0.00546      0.00687 
-##   27    0.971     0.963  0.00456      0.00576 
-##   52    0.961     0.95   0.00587      0.0074  
+##   2     0.968     0.959  0.00472      0.00595 
+##   27    0.968     0.96   0.00498      0.00631 
+##   52    0.957     0.945  0.00734      0.00932 
 ## 
 ## Accuracy was used to select the optimal model using  the largest value.
 ## The final value used for the model was mtry = 27.</code></pre>
+<pre class="r"><code>  ptm &lt;- proc.time () - ptm</code></pre>
 </div>
 <div id="out-of-sample-error" class="section level3">
 <h3>Out of Sample Error</h3>
-<p>This is the error rate reported on the cross-validation data set.</p>
-<pre><code>## [1] &quot;Classification Trees(CART): Accuracy=0.495, Out of Sample error rate=0.505&quot;</code></pre>
-<pre><code>## [1] &quot;Boosting(GBM): Accuracy=0.957, Out of Sample error rate=0.043&quot;</code></pre>
-<pre><code>## [1] &quot;Random Forest(RF): Accuracy=0.981, Out of Sample error rate=0.019&quot;</code></pre>
+<p>The “In Sample” error rate is calculated on the training set itself, and the “Out of Sample” error rate is calculated on the cross-validation data set. There is a small difference in the two error rates as expected.</p>
+<pre><code>## [1] &quot;Classification Trees(CART): In Sample Accuracy=0.504, Error rate=0.4955&quot;</code></pre>
+<pre><code>## [1] &quot;Classification Trees(CART): Out of Sample Accuracy=0.495, Error rate=0.5051&quot;</code></pre>
+<pre><code>## [1] &quot;Boosting(GBM): In Sample Accuracy=0.9817, Error rate=0.0183&quot;</code></pre>
+<pre><code>## [1] &quot;Boosting(GBM): Out of Sample Accuracy=0.9543, Error rate=0.0457&quot;</code></pre>
+<pre><code>## [1] &quot;Random Forest(RF): In Sample Accuracy=1, Error rate=0&quot;</code></pre>
+<pre><code>## [1] &quot;Random Forest(RF): Out of Sample Accuracy=0.9773, Error rate=0.0227&quot;</code></pre>
 </div>
 <div id="conclusion" class="section level3">
 <h3>Conclusion</h3>
 <p>After reviewing the accuracy rates of all the three models, I have decided to adopt the Random Forest model and submit the predictions from this model for the testing set.</p>
 <pre><code>## [1] &quot;CART - Predictions for Test Set: &quot;</code></pre>
-<pre><code>##  [1] C A A A A C C A A A C C C A C A A A A C
+<pre><code>##  [1] C A C A A C C A A A C C C A C A A A A C
 ## Levels: A B C D E</code></pre>
 <pre><code>## [1] &quot;GBM - Predictions for Test Set: &quot;</code></pre>
-<pre><code>##  [1] B A B A A E D B A A B C B A E E A B A B
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E</code></pre>
 <pre><code>## [1] &quot;RF - Predictions for Test Set: &quot;</code></pre>
-<pre><code>##  [1] B A A A A E D B A A B C B A E E A B B B
+<pre><code>##  [1] B A B A A E D B A A B C B A E E A B B B
 ## Levels: A B C D E</code></pre>
 </div>
 <div id="test-data-predictions" class="section level3">
