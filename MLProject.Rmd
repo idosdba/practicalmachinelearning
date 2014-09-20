@@ -1,0 +1,231 @@
+---
+title: "Practical Machine Learning - Project"
+output: html_document
+fontsize: 8pt
+geometry: margin=0.7in
+---
+
+###Project Writeup
+Sep 20, 2014
+
+### Executive Summary
+
+This project deals with the data collected from accelerometers on the belt, forearm, arm, and 
+dumbell on individuals. The participants were asked to perform the exercises correctly and 
+incorrectly in 5 different ways. The quality of the exercises are denoted by variable "classe" taking values from A to E. Information and data comes from the website - http://groupware.les.inf.puc-rio.br/har
+
+The goal of this project is to predict the quality of the exercises performed by the participants using the accelerometers data as the predictors. 
+
+###Input Data
+
+***Packages***
+
+```{r loadlib}
+  library(caret)
+  library(randomForest)
+  library(gbm)
+```
+
+***Load Data***
+
+Training and Testing data sets are provided by the Course project website. 
+
+```{r load_data}
+#  if (!file.exists('./pml-training.csv')) {
+#      download.file(url='http://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv', 
+#                       destfile='pml-training.csv', method='wget')
+#  }
+
+#  if (!file.exists('./pml-testing.csv')) {
+#      download.file(url='http://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv', 
+#                   destfile='pml-testing.csv', method='wget')
+#  }
+
+  #Load the data
+  training = read.csv ("./pml-training.csv", na.string=c("NA",""), 
+                       header=TRUE, colClasses = "character")
+  testing =  read.csv ("./pml-testing.csv",  na.string=c("NA",""), 
+                       header=TRUE, colClasses = "character")
+  #colnames(training)
+  #colnames(testing)
+
+  dim(training)
+  dim(testing)
+
+```
+
+
+###Features
+
+***Cleaning Data***
+
+Clean up data and make it ready for processing.
+
+```{r cleaning_data}
+  #Removed the first 7 columns as they are housekeeping data and not useful for predictions.
+  train_Clean <- training[,-c(1:7)]
+  test_Clean <- testing[,-c(1:7)]
+
+  # Remove the columns that have more than 50% of data as NA
+  threshold <- dim(train_Clean)[1] * 0.50
+  nonNACols <- apply(train_Clean, 2, function(x) { sum(is.na(x)) < threshold })
+  train_Clean <- train_Clean[, nonNACols]
+  test_Clean <- test_Clean[, nonNACols]
+
+  #Convert all the columns to numeric and classe to factor
+  allcols <- colnames(train_Clean[1:ncol(train_Clean)-1])
+  train_Clean[, allcols] <- lapply(train_Clean[,allcols,drop=FALSE],as.numeric)
+  train_Clean$classe <- as.factor(train_Clean$classe)
+
+  allcols <- colnames(test_Clean[1:ncol(test_Clean)])
+  test_Clean[, allcols] <- lapply(test_Clean[,allcols,drop=FALSE],as.numeric)
+
+```
+
+***Variability***
+
+The "near zero value" are all FALSE. There is no need to remove any covariates for lack of variability.
+
+```{r chk_var}
+  # Check variability
+  nzv_df <- nearZeroVar(train_Clean, saveMetrics = TRUE)
+  train_Clean <- train_Clean[, nzv_df$nzv == FALSE]
+  test_Clean  <- test_Clean[, nzv_df$nzv == FALSE]
+
+```
+
+***Data Validity***
+
+```{r data_valid}
+    # Check if the column names match between train_Clean and test_Clean
+    names(train_Clean) == names(test_Clean)
+
+    str(train_Clean)
+    str(test_Clean)
+```
+
+###Algorithm
+
+***Data Subsets***
+
+Partition the provided training data set into model training (30%) and cross-validation (70%) 
+data sets. These data sets will be used to evaluate different prediction models.
+
+```{r data_subsets}
+
+  inTrain <- createDataPartition(y=train_Clean$classe, p = 0.30, list = FALSE)
+  train_set  <- train_Clean[inTrain,]            #This is 30% of clean train data
+  crossv_set <- train_Clean[-inTrain,]           #This would be 70% 
+  
+  dim(train_set)
+  dim(crossv_set)
+
+```
+
+###Parameters
+
+I planned on running three different models, Classification trees(CART), Boosting with trees(GBM) and
+Random Forests(RF). Depending on the accuracy of the predictions, use that model to predict the
+values for the given testing set that is one of the deliverables for this project. Mostly, I have
+decided to use default parameters for all these models.
+
+###Model Evaluation 
+
+***Classification Trees(CART)***
+
+```{r cart_model}
+  ptm <- proc.time()
+  set.seed(1153)
+  cart_mod_fit <- train(classe ~ .,  data = train_set, method="rpart")
+  cart_predictions <- predict(cart_mod_fit, newdata=crossv_set)
+  cart_accuracy <- confusionMatrix(cart_predictions, crossv_set$classe)$overall[1]
+  cart_error_rate <- sum(cart_predictions != crossv_set$classe)/nrow(crossv_set)
+  cart_test_pred <- predict(cart_mod_fit, newdata=test_Clean)
+  ptm <- proc.time () - ptm
+  print(cart_mod_fit, digits=3)
+```
+
+***Boosting(GBM)***
+
+```{r gbm_model}
+  ptm <- proc.time()
+  set.seed(1153)
+  gbm_mod_fit <- train(classe ~ .,  data = train_set, method="gbm", verbose=FALSE)
+  gbm_predictions <- predict(gbm_mod_fit, newdata=crossv_set)
+  gbm_accuracy <- confusionMatrix(gbm_predictions, crossv_set$classe)$overall[1]
+  gbm_error_rate <- sum(gbm_predictions != crossv_set$classe)/nrow(crossv_set)
+  gbm_test_pred <- predict(gbm_mod_fit, newdata=test_Clean)
+  ptm <- proc.time () - ptm
+  print(gbm_mod_fit, digits=3)
+```
+
+***Random Forest(RF)***
+
+```{r rf_model}
+  ptm <- proc.time()
+  set.seed(1153)
+  rf_mod_fit <- train(classe ~ .,  data = train_set, method="rf", ntree=250)
+  rf_predictions <- predict(rf_mod_fit, newdata=crossv_set)
+  rf_accuracy <- confusionMatrix(rf_predictions, crossv_set$classe)$overall[1]
+  rf_error_rate <- sum(rf_predictions != crossv_set$classe)/nrow(crossv_set)
+  rf_test_pred <- predict(rf_mod_fit, newdata=test_Clean)
+  ptm <- proc.time () - ptm
+  print(rf_mod_fit, digits=3)
+```
+
+###Out of Sample Error
+
+This is the error rate reported on the cross-validation data set.
+
+```{r oos_error, echo=FALSE}
+
+    print(paste0("Classification Trees(CART): ",
+             "Accuracy=", round(cart_accuracy, digits=3), 
+             ", Out of Sample error rate=", round(cart_error_rate,digits=3) )) 
+
+    print(paste0("Boosting(GBM): ",
+             "Accuracy=", round(gbm_accuracy, digits=3), 
+             ", Out of Sample error rate=", round(gbm_error_rate,digits=3) )) 
+
+    print(paste0("Random Forest(RF): ",
+             "Accuracy=", round(rf_accuracy, digits=3), 
+             ", Out of Sample error rate=", round(rf_error_rate,digits=3) )) 
+
+```
+
+
+###Conclusion
+
+After reviewing the accuracy rates of all the three models, I have decided to adopt the
+Random Forest model and submit the predictions from this model for the testing set.
+
+```{r concld, echo=FALSE}
+    print("CART - Predictions for Test Set: ")
+    cart_test_pred 
+
+    print("GBM - Predictions for Test Set: ")
+    gbm_test_pred 
+
+    print("RF - Predictions for Test Set: ")
+    rf_test_pred 
+
+```
+
+###Test Data Predictions
+
+Use the Course provided code to generate the files for project submission
+
+```{r eval_model}
+  pml_write_files = function(x){
+      n = length(x)
+      for(i in 1:n){
+          filename = paste0("problem_id_",i,".txt")
+          write.table(x[i],file=filename,quote=FALSE,row.names=FALSE,col.names=FALSE)
+      }
+  }
+  
+  pml_write_files(rf_test_pred)
+```
+
+
+###End of Report
